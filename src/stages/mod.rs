@@ -5,6 +5,6 @@ pub use stage2::{stage2_1, stage2_2};
 pub mod stage3;
 pub use stage3::{stage3_1, stage3_2};
 pub mod stage4;
-pub use stage4::{stage4_1};
+pub use stage4::{stage4_1, stage4_2};
 pub mod stage5;
 pub use stage5::stage5_1;

@@ -48,24 +48,22 @@ struct RgbColor {
     g: u8,
     b: u8
 }
-struct ParseRgbColorError {}
 impl FromStr for RgbColor {
-    type Err = ParseRgbColorError;
-    fn from_str(i: &str) -> Result<Self, Self::Err> {
+    type Err = anyhow::Error;
+    fn from_str(i: &str) -> anyhow::Result<Self> {
         Ok(RgbColor {
-            r: u8::from_str_radix(&i[0..2], 16).map_err(|_e| ParseRgbColorError {})?,
-            g: u8::from_str_radix(&i[2..4], 16).map_err(|_e| ParseRgbColorError {})?,
-            b: u8::from_str_radix(&i[4..6], 16).map_err(|_e| ParseRgbColorError {})?,
+            r: u8::from_str_radix(&i[0..2], 16)?,
+            g: u8::from_str_radix(&i[2..4], 16)?,
+            b: u8::from_str_radix(&i[4..6], 16)?,
         })
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 enum EyeColor {Amb,Blu,Brn,Gry,Grn,Hzl,Oth}
-struct ParseEyeColorError {}
 impl FromStr for EyeColor {
-    type Err = ParseEyeColorError;
-    fn from_str(i: &str) -> Result<Self, Self::Err> {
+    type Err = anyhow::Error;
+    fn from_str(i: &str) -> anyhow::Result<Self> {
         match i {
             "amb" => Ok(EyeColor::Amb),
             "blu" => Ok(EyeColor::Blu),
@@ -74,7 +72,7 @@ impl FromStr for EyeColor {
             "grn" => Ok(EyeColor::Grn),
             "hzl" => Ok(EyeColor::Hzl),
             "oth" => Ok(EyeColor::Oth),
-            _ => Err(ParseEyeColorError {}),
+            _ => anyhow::bail!("Invalid eye color {}", i),
         }
     }
 }
@@ -106,14 +104,79 @@ fn passport_tag(input: &str) -> IResult<&str, (&str, &str)> {
     Ok((input, (key, value)))
 }
 #[derive(Debug, Clone, Copy)]
-struct Passport {
-    byr: Option<usize>,
-    iyr: Option<usize>,
-    eyr: Option<usize>,
-    hgt: Option<Height>,
-    hcl: Option<RgbColor>,
-    ecl: Option<EyeColor>,
-    pid: Option<usize>,
+struct Passport<'a> {
+    byr: Option<&'a str>,
+    iyr: Option<&'a str>,
+    eyr: Option<&'a str>,
+    hgt: Option<&'a str>,
+    hcl: Option<&'a str>,
+    ecl: Option<&'a str>,
+    pid: Option<&'a str>,
+}
+
+impl<'a> Passport<'a> {
+    fn promote(self) -> anyhow::Result<Stage1Passport<'a>> {
+        if let (Some(byr), Some(iyr), Some(eyr), Some(hgt), Some(hcl), Some(ecl), Some(pid)) = 
+            (self.byr, self.iyr, self.eyr, self.hgt, self.hcl, self.ecl, self.pid) {
+            Ok(Stage1Passport {byr,iyr,eyr,hgt,hcl,ecl,pid})
+        } else {
+            anyhow::bail!("Can't create stage 1 passport: missing fields")
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Stage1Passport<'a> {
+    byr: &'a str,
+    iyr: &'a str,
+    eyr: &'a str,
+    hgt: &'a str,
+    hcl: &'a str,
+    ecl: &'a str,
+    pid: &'a str,
+}
+
+impl<'a> Stage1Passport<'a> {
+    fn promote(&self) -> anyhow::Result<Stage2Passport> {
+        Ok(Stage2Passport{
+            byr: match self.byr.parse::<usize>()? {
+                byr if byr >= 1920 && byr <= 2002 => byr,
+                _ => anyhow::bail!("Invalid byr {}", self.byr)
+            },
+            iyr: match self.iyr.parse::<usize>()? {
+                iyr if iyr >= 2010 && iyr <= 2020 => iyr,
+                _ => anyhow::bail!("Invalid iyr {}", self.iyr)
+            },
+            eyr: match self.eyr.parse::<usize>()? {
+                eyr if eyr >= 2020 && eyr <= 2030 => eyr,
+                _ => anyhow::bail!("Invalid eyr {}", self.eyr)
+            },
+            hgt: match height(self.hgt).map_err(|_| anyhow::anyhow!("invalid height {}", self.hgt))? {
+                (_, Height {typ: HeightType::Inches, height}) if height >= 59 && height <= 76 =>
+                    Height {typ: HeightType::Inches, height},
+                (_, Height {typ: HeightType::Centimeters, height}) if height >= 150 && height <= 193 => 
+                    Height {typ: HeightType::Centimeters, height},
+                _ => anyhow::bail!("Invalid height {}", self.hgt)
+            },
+            hcl: rgb_color(self.hcl).map_err(|_| anyhow::anyhow!("invalid hcl {}", self.hcl))?.1,
+            ecl: self.ecl.parse::<EyeColor>()?,
+            pid: match self.pid.parse::<usize>()? {
+                pid if self.pid.chars().count() == 9 => pid,
+                _ => anyhow::bail!("invalid pid: {}", self.pid)
+            },
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Stage2Passport {
+    byr: usize,
+    iyr: usize,
+    eyr: usize,
+    hgt: Height,
+    hcl: RgbColor,
+    ecl: EyeColor,
+    pid: usize,
 }
 
 fn passport(input: &str) -> IResult<&str, Passport> {
@@ -124,42 +187,17 @@ fn passport(input: &str) -> IResult<&str, Passport> {
         fields.insert(key, val);
         new_input = input;
     }
-    
-    let passport = Passport {
-        byr: match fields.get("byr").map(|&x| x.parse::<usize>()) {
-            Some(Ok(v)) if (v >= 1920 && v <= 2002) => Some(v),
-            _ => None
-        },
-        iyr: match fields.get("iyr").map(|&x| x.parse::<usize>()) {
-            Some(Ok(v)) if (v >= 2010 && v <= 2020) => Some(v),
-            _ => None
-        },
-        eyr: match fields.get("eyr").map(|&x| x.parse::<usize>()) {
-            Some(Ok(v)) if (v >= 2020 && v <= 2030) => Some(v),
-            _ => None
-        },
-        ecl: match fields.get("ecl").map(|&x| x.parse::<EyeColor>()) {
-            Some(Ok(v)) => Some(v),
-            _ => None
-        },
-        hcl: match fields.get("hcl").map(|&x| rgb_color(x)) {
-            Some(Ok((_, color))) => Some(color),
-            _ => None
-        },
-        hgt: match fields.get("hgt").map(|&x| height(x)) {
-            Some(Ok((_, Height {typ: HeightType::Inches, height}))) if height >= 59 && height <= 76 =>
-                Some(Height {typ: HeightType::Inches, height}),
-            Some(Ok((_, Height {typ: HeightType::Centimeters, height}))) if height >= 150 && height <= 193 => 
-                Some(Height {typ: HeightType::Centimeters, height}),
-            _ => None
-        },
-        pid: match fields.get("pid").map(|&x| if x.chars().count() == 9 {x.parse::<usize>().ok()} else {None}) {
-            Some(Some(v)) if v < 1_000_000_000 => Some(v),
-            _ => None
-        },
-    };
-    
-    Ok((new_input, passport))
+
+    Ok((new_input, Passport {
+        // Dereference inner value to make &&str->&str
+        byr: fields.get("byr").map(|f| *f),
+        iyr: fields.get("iyr").map(|f| *f),
+        eyr: fields.get("eyr").map(|f| *f),
+        ecl: fields.get("ecl").map(|f| *f),
+        hcl: fields.get("hcl").map(|f| *f),
+        hgt: fields.get("hgt").map(|f| *f),
+        pid: fields.get("pid").map(|f| *f),
+    }))
 }
 
 pub fn stage4_1() -> usize {
@@ -170,7 +208,20 @@ pub fn stage4_1() -> usize {
     passports.split("\n\n")
     .map(|p| passport(p))
     .filter_map(Result::ok)
-    .filter(|(_, p)| p.byr.is_some() && p.iyr.is_some() && p.eyr.is_some() && 
-                     p.hgt.is_some() && p.hcl.is_some() && p.ecl.is_some() && p.pid.is_some())
+    .filter_map(|(_, p)| p.promote().ok())
+    .count()
+}
+
+
+pub fn stage4_2() -> usize {
+    let mut f = std::fs::File::open("stage4.txt").unwrap();
+    let mut passports = String::new();
+
+    f.read_to_string(&mut passports).unwrap();
+    passports.split("\n\n")
+    .map(|p| passport(p))
+    .filter_map(Result::ok)
+    .filter_map(|(_, p)| p.promote().ok())
+    .filter_map(|p| p.promote().ok())
     .count()
 }
