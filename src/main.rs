@@ -4,7 +4,7 @@ extern crate nom;
 mod stages;
 
 fn main() -> std::io::Result<()> {
-    println!("highest seat: {}", stages::stage5_1());
+    println!("your seat: {:?}", stages::stage5_2());
 
     Ok(())
 }
