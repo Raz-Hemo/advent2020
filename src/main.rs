@@ -4,7 +4,7 @@ extern crate nom;
 mod stages;
 
 fn main() -> std::io::Result<()> {
-    println!("sum: {:?}", stages::stage6_2());
+    println!("sum: {:?}", stages::stage7_1());
 
     Ok(())
 }
