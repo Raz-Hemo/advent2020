@@ -48,7 +48,7 @@ fn seat(input: &str) -> IResult<&str, Seat> {
         )),
         make_seat
     )(input)
-  }
+}
 
 pub fn stage5_1() -> Option<usize> {
     let mut f = std::fs::File::open("stage5.txt").unwrap();

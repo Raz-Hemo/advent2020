@@ -4,7 +4,7 @@ extern crate nom;
 mod stages;
 
 fn main() -> std::io::Result<()> {
-    println!("sum: {:?}", stages::stage7_1());
+    println!("count: {:?}", stages::stage7_1(String::from("shiny gold")));
 
     Ok(())
 }
