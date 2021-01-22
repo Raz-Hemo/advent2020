@@ -1,4 +1,4 @@
-use std::{io::prelude::*, thread::current};
+use std::io::prelude::*;
 use std::collections::HashMap;
 use nom::{
     IResult,
@@ -48,12 +48,12 @@ fn get_rules() -> HashMap<String, Vec<(String, usize)>> {
     f.read_to_string(&mut rules).unwrap();
     rules.split("\n").filter_map(|r| rule(r).ok()).map(|(_, r)| (r.container, r.content)).collect()
 }
+
 pub fn stage7_1(owned_color: String) -> usize {
     let rules = get_rules();
     let mut count = 0;
     for (_, content) in rules.iter() {
         let mut current_colors: Vec<&str> = content.iter().map(|(c, _)| &c[..]).collect();
-        let mut final_colors: Vec<&str> = Vec::new();
         if current_colors.iter().any(|&i| i == owned_color) {
             count += 1;
             continue;
@@ -66,11 +66,7 @@ pub fn stage7_1(owned_color: String) -> usize {
                         count += 1;
                         break;
                     }
-                    if new_colors.len() == 0 {
-                        final_colors.push(c);
-                    } else {
-                        current_colors.extend(new_colors.iter().map(|(new_c, _)| &new_c[..]));
-                    }
+                    current_colors.extend(new_colors.iter().map(|(new_c, _)| &new_c[..]));
                 }
             } else {
                 break
@@ -80,20 +76,21 @@ pub fn stage7_1(owned_color: String) -> usize {
     return count;
 }
 
-pub fn stage7_2() -> () {
-    // let mut f = std::fs::File::open("stage6.txt").unwrap();
-    // let mut answers = String::new();
-
-    // f.read_to_string(&mut answers).unwrap();
-    // answers.split("\n\n")
-    // .map(|g| g
-    //     // make a hashset out of each person's answers
-    //     .split("\n")
-    //     .filter(|a| a.chars().count() != 0) // remove accidental empty lines
-    //     .map(|a| a.chars().collect::<std::collections::HashSet<char>>())
-    //     .fold( // intersect all answers of this group
-    //         ('a'..='z').collect::<std::collections::HashSet<char>>(),
-    //         |acc, a| acc.intersection(&a).cloned().collect())
-    //     .len())
-    // .sum()
+pub fn stage7_2(owned_color: String) -> usize {
+    let rules = get_rules();
+    let mut total_bags = 0;
+    let mut current_content = rules.get(&owned_color[..]).unwrap().clone();
+    loop {
+        if let Some((color, amount)) = current_content.pop() {
+            total_bags += amount;
+            if let Some(new_colors) = rules.get(&color[..]) {
+                for (new_color, new_amount) in new_colors.iter() {
+                    current_content.push((new_color.clone(), amount * new_amount));
+                }
+            }
+        } else {
+            break
+        }
+    }
+    return total_bags;
 }
