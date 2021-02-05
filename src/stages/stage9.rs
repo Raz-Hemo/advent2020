@@ -1,5 +1,4 @@
 use std::io::prelude::*;
-use std::str::FromStr;
 use anyhow::Context;
 
 fn get_numbers() -> anyhow::Result<Vec<usize>> {
