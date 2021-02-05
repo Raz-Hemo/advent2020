@@ -4,7 +4,7 @@ extern crate nom;
 mod stages;
 
 fn main() -> std::io::Result<()> {
-    println!("product: {:?}", stages::stage10_1());
+    println!("number of patahs: {:?}", stages::stage10_2());
 
     Ok(())
 }
