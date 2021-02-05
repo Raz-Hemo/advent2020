@@ -4,7 +4,7 @@ extern crate nom;
 mod stages;
 
 fn main() -> std::io::Result<()> {
-    println!("first number: {:?}", stages::stage9_1());
+    println!("weakness: {:?}", stages::stage9_2());
 
     Ok(())
 }
