@@ -36,7 +36,7 @@ fn get_seats() -> anyhow::Result<Vec<Vec<Seat>>> {
     .collect::<Result<Vec<Vec<Seat>>, _>>()
 }
 
-fn run_step(seats: &Vec<Vec<Seat>>) -> Vec<Vec<Seat>> {
+fn run_step_stage1(seats: &Vec<Vec<Seat>>) -> Vec<Vec<Seat>> {
     let mut new_seats = seats.clone();
     let offsets = [(-1i16, -1i16), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)];
     for row in 0..seats.len() {
@@ -59,13 +59,53 @@ fn run_step(seats: &Vec<Vec<Seat>>) -> Vec<Vec<Seat>> {
     new_seats
 }
 
-pub fn stage11_1() -> anyhow::Result<usize> {
+fn run_step_stage2(seats: &Vec<Vec<Seat>>) -> Vec<Vec<Seat>> {
+    let mut new_seats = seats.clone();
+    let offsets = [(-1i16, -1i16), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)];
+    for row in 0..seats.len() {
+        for col in 0..seats[row].len() {
+            let taken_count = 
+                offsets.iter()
+                .filter(|&&(ox, oy)| {
+                    let mut curx = ox + col as i16;
+                    let mut cury = oy + row as i16;
+                    // we assume that all rows and cols are the same dimensions
+                    while curx >= 0 && curx < seats[row].len() as i16 && cury >= 0 && cury < seats.len() as i16 {
+                        match seats[cury as usize][curx as usize] {
+                            Seat::Taken => { return true }
+                            Seat::Empty => { return false }
+                            _ => { curx += ox; cury += oy; }
+                        } 
+                    }
+                    return false;
+                })
+                .count();
+
+            if seats[row][col] == Seat::Empty && taken_count == 0 {
+                new_seats[row][col] = Seat::Taken;
+            } else if seats[row][col] == Seat::Taken && taken_count >= 5 {
+                new_seats[row][col] = Seat::Empty;
+            }
+        }
+    }
+    new_seats
+}
+
+fn simulate(step_function: &dyn Fn(&Vec<Vec<Seat>>) -> Vec<Vec<Seat>>) -> anyhow::Result<usize> {
     let mut last_step = get_seats().context("Failed to parse seat map")?;
-    let mut current_step = run_step(&last_step);
+    let mut current_step = step_function(&last_step);
 
     while last_step != current_step {
         last_step = current_step.clone();
-        current_step = run_step(&current_step);
+        current_step = step_function(&current_step);
     }
     Ok(current_step.iter().map(|r| r.iter().filter(|&&s| s == Seat::Taken).count()).sum())
+}
+
+pub fn stage11_1() -> anyhow::Result<usize> {
+    simulate(&run_step_stage1)
+}
+
+pub fn stage11_2() -> anyhow::Result<usize> {
+    simulate(&run_step_stage2)
 }

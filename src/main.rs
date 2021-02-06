@@ -4,7 +4,7 @@ extern crate nom;
 mod stages;
 
 fn main() -> std::io::Result<()> {
-    println!("number of taken seats: {:?}", stages::stage11_1());
+    println!("number of taken seats: {:?}", stages::stage11_2());
 
     Ok(())
 }
