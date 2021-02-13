@@ -20,3 +20,5 @@ pub mod stage10;
 pub use stage10::{stage10_1, stage10_2};
 pub mod stage11;
 pub use stage11::{stage11_1, stage11_2};
+pub mod stage12;
+pub use stage12::{stage12_1, stage12_2};
